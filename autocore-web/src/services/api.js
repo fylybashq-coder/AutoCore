@@ -2,7 +2,7 @@ import axios from "axios";
 
 // توحيد الـ baseURL على localhost ليتطابق تماماً مع متصفحك (localhost:5173)
 const api = axios.create({
-  baseURL: "http://localhost:8000",
+  baseURL: "https://radiant-illumination-production-c49b.up.railway.app",
   timeout: 15000,
 });
 
