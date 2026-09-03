@@ -1,13 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import engine, Base
-from app.routers.customers import router as customers_router
-from app.routers.vehicles import router as vehicles_router
-from app.routers.job_cards import router as job_cards_router
-from app.routers.calls import router as calls_router
-from app.routers.appointments import router as appointments_router
-from app.routers.tickets import router as tickets_router
+from database import engine, Base
+from routers.customers import router as customers_router
+from routers.vehicles import router as vehicles_router
+from routers.job_cards import router as job_cards_router
+from routers.calls import router as calls_router
+from routers.appointments import router as appointments_router
+from routers.tickets import router as tickets_router
 
 # إنشاء الجداول في قاعدة البيانات تلقائياً
 Base.metadata.create_all(bind=engine)
