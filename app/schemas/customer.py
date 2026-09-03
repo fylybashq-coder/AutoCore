@@ -1,6 +1,17 @@
 from pydantic import BaseModel
+from typing import Optional
 
-class CustomerCreate(BaseModel):
+class CustomerBase(BaseModel):
     name: str
-    mobile: str
-    email: str | None = None
+    phone: str
+    email: Optional[str] = None
+    address: Optional[str] = None
+
+class CustomerCreate(CustomerBase):
+    pass
+
+class CustomerResponse(CustomerBase):
+    id: int
+
+    class Config:
+        from_attributes = True

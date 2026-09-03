@@ -1,112 +1,42 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-
+from typing import List
 from app.database import get_db
-from app.schemas.customer import CustomerCreate
-from app.services.customer_service import CustomerService
+from app.models.customer import Customer
+from app.schemas.customer import CustomerCreate, CustomerResponse
 
-router = APIRouter(
-    prefix="/customers",
-    tags=["Customers"]
-)
+router = APIRouter(prefix="/customers", tags=["Customers"])
 
+@router.get("", response_model=List[CustomerResponse])
+@router.get("/", response_model=List[CustomerResponse])
+def get_all_customers(db: Session = Depends(get_db)):
+    return db.query(Customer).all()
 
-@router.post("/")
-def create_customer(
-    customer: CustomerCreate,
-    db: Session = Depends(get_db)
-):
-    new_customer = CustomerService.create_customer(db, customer)
+@router.post("", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
+def create_customer(payload: CustomerCreate, db: Session = Depends(get_db)):
+    try:
+        # التحقق من وجود رقم الهاتف مسبقاً إذا وُجد
+        if payload.phone:
+            exist = db.query(Customer).filter(Customer.phone == payload.phone).first()
+            if exist:
+                raise HTTPException(status_code=400, detail="Phone number is already registered")
 
-    return {
-        "message": "Customer created successfully",
-        "id": new_customer.id,
-        "name": new_customer.name,
-        "mobile": new_customer.mobile,
-        "email": new_customer.email
-    }
+        data = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+        c = Customer(**data)
+        db.add(c)
+        db.commit()
+        db.refresh(c)
+        return c
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
-
-@router.get("/")
-def get_customers(
-    db: Session = Depends(get_db)
-):
-    return CustomerService.get_customers(db)
-
-
-@router.get("/{customer_id}/profile")
-def customer_profile(
-    customer_id: int,
-    db: Session = Depends(get_db)
-):
-    """GET /customers/{customer_id}/profile -> returns Customer 360 data"""
-    data = CustomerService.get_customer_360(db, customer_id)
-
-    if not data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found"
-        )
-
-    return data
-
-
-@router.get("/mobile/{mobile}")
-def customer_by_mobile(
-    mobile: str,
-    db: Session = Depends(get_db)
-):
-    customer = CustomerService.customer_by_mobile(db, mobile)
-
-    if not customer:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found"
-        )
-
-    return customer
-
-
-@router.put("/{customer_id}")
-def update_customer(
-    customer_id: int,
-    customer: CustomerCreate,
-    db: Session = Depends(get_db),
-):
-    updated = CustomerService.update_customer(
-        db,
-        customer_id,
-        customer,
-    )
-
-    if not updated:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found"
-        )
-
-    return {
-        "message": "Customer Updated",
-        "customer": updated,
-    }
-
-
-@router.delete("/{customer_id}")
-def delete_customer(
-    customer_id: int,
-    db: Session = Depends(get_db),
-):
-    deleted = CustomerService.delete_customer(
-        db,
-        customer_id,
-    )
-
-    if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found"
-        )
-
-    return {
-        "message": "Customer Deleted"
-    }
+@router.get("/{customer_id}", response_model=CustomerResponse)
+def get_customer(customer_id: int, db: Session = Depends(get_db)):
+    c = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return c

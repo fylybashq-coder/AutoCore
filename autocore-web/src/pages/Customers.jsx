@@ -1,409 +1,429 @@
-import Modal from "../components/Modal";
-import AddCustomerForm from "../components/AddCustomerForm";
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { 
-  Pencil, 
-  Trash2, 
-  Search, 
-  Users, 
-  Car, 
-  Plus, 
-  ChevronLeft, 
-  ChevronRight,
-  UserCheck,
-  X,
-  AlertTriangle
-} from "lucide-react";
-import api from "../services/api";
-
+import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import api from "../services/api";
+import { 
+  Users, 
+  Search, 
+  Plus, 
+  Save, 
+  ArrowLeft, 
+  History, 
+  Send, 
+  Car, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  ChevronRight 
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 function Customers() {
-  const [customers, setCustomers] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const navigate = useNavigate();
+  const [viewMode, setViewMode] = useState("list"); // "list" | "form"
+  const [customersList, setCustomersList] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("vehicles");
 
-  // Custom Confirmation Delete Modal State
-  const [customerToDelete, setCustomerToDelete] = useState(null);
+  // Form State
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    address: "Cairo, Egypt",
+    company: "Individual Client",
+    tax_id: "",
+    notes: ""
+  });
 
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [logs, setLogs] = useState([
+    { id: 1, user: "System", text: "Customer file initialized.", time: "Now" }
+  ]);
+  const [newLog, setNewLog] = useState("");
 
-  // Fetch Customers
-  const loadCustomers = useCallback(async () => {
+  const loadAll = async () => {
     try {
-      setLoading(true);
-      const res = await api.get("/customers");
-      setCustomers(Array.isArray(res.data) ? res.data : res.data.data || []);
+      const [cRes, vRes] = await Promise.all([
+        api.get("/customers").catch(() => api.get("/customers/")).catch(() => ({ data: [] })),
+        api.get("/vehicles").catch(() => api.get("/vehicles/")).catch(() => ({ data: [] }))
+      ]);
+      setCustomersList(Array.isArray(cRes.data) ? cRes.data : []);
+      setVehicles(Array.isArray(vRes.data) ? vRes.data : []);
     } catch (err) {
-      console.error("Failed to load customers:", err);
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  const handleOpenNew = () => {
+    setSelectedId(null);
+    setFormData({
+      name: "",
+      phone: "",
+      email: "",
+      address: "Cairo, Egypt",
+      company: "Individual Client",
+      tax_id: "",
+      notes: ""
+    });
+    setLogs([{ id: 1, user: "System", text: "New customer form opened.", time: "Now" }]);
+    setViewMode("form");
+  };
+
+  const handleOpenEdit = (c) => {
+    setSelectedId(c.id);
+    setFormData({
+      name: c.name || "",
+      phone: c.phone || "",
+      email: c.email || "",
+      address: c.address || "Cairo, Egypt",
+      company: c.company || "Individual Client",
+      tax_id: c.tax_id || "",
+      notes: c.notes || ""
+    });
+    setLogs([{ id: Date.now(), user: "System", text: `Loaded customer file #${c.id}`, time: "Just now" }]);
+    setViewMode("form");
+  };
+
+  const handleAddLog = (e) => {
+    e.preventDefault();
+    if (!newLog.trim()) return;
+    setLogs([{ id: Date.now(), user: "Advisor", text: newLog, time: "Just now" }, ...logs]);
+    setNewLog("");
+  };
+
+  const handleSaveCustomer = async () => {
+    if (!formData.name.trim() || !formData.phone.trim()) {
+      alert("Please enter customer name and phone number!");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email || "",
+        address: formData.address || ""
+      };
+
+      if (selectedId) {
+        await api.patch(`/customers/${selectedId}`, payload).catch(() => api.put(`/customers/${selectedId}`, payload));
+        alert(`Customer #${selectedId} updated successfully!`);
+      } else {
+        const res = await api.post("/customers", payload).catch(() => api.post("/customers/", payload));
+        if (res?.data?.id) setSelectedId(res.data.id);
+        alert("New customer created successfully!");
+      }
+
+      await loadAll();
+    } catch (err) {
+      alert("Error saving customer: " + (err.response?.data?.detail || err.message));
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    loadCustomers();
-  }, [loadCustomers]);
-
-  const handleSearchChange = (e) => {
-    setSearch(e.target.value);
-    setCurrentPage(1);
   };
 
-  // Clear search term using the 'X' button
-  const clearSearch = () => {
-    setSearch("");
-    setCurrentPage(1);
-  };
-
-  // Execute Delete after user confirms in Custom Modal
-  const confirmDeleteCustomer = async () => {
-    if (!customerToDelete) return;
-
-    try {
-      await api.delete(`/customers/${customerToDelete.id}`);
-      setCustomerToDelete(null);
-      loadCustomers();
-    } catch (err) {
-      console.error(err);
-      alert("Delete Failed");
-    }
-  };
-
-  // Filtered Customers
-  const filteredCustomers = useMemo(() => {
-    return customers.filter((customer) => {
-      const name = customer?.name?.toLowerCase() || "";
-      const mobile = customer?.mobile || "";
-      const searchTerm = search.toLowerCase();
-      return name.includes(searchTerm) || mobile.includes(searchTerm);
-    });
-  }, [customers, search]);
-
-  // Pagination Calculations
-  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage) || 1;
-  const paginatedCustomers = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredCustomers.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredCustomers, currentPage, itemsPerPage]);
-
-  // Calculate Total Vehicles
-  const totalVehicles = useMemo(() => {
-    return customers.reduce(
-      (sum, customer) => sum + (Number(customer?.vehicle_count) || 0),
-      0
-    );
-  }, [customers]);
+  const customerVehicles = vehicles.filter(v => v.customer_id === selectedId);
+  const filteredCustomers = customersList.filter(c => 
+    (c.name || "").toLowerCase().includes(search.toLowerCase()) || 
+    (c.phone || "").includes(search)
+  );
 
   return (
-    <div className="flex bg-slate-100 min-h-screen">
+    <div className="flex bg-slate-100 min-h-screen font-sans text-slate-800" dir="ltr">
       <Sidebar />
-
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Sticky Header at top with Z-Index */}
-        <Header className="sticky top-0 z-50 bg-white shadow-sm border-b border-slate-200 px-8 py-4" />
+        <Header />
 
-        <div className="p-8 flex-1">
-          {/* Header Title & Add Button */}
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
-                Customers
-              </h1>
-              <p className="text-gray-500 mt-1 font-medium">
-                Manage all customer profiles and vehicles
-              </p>
-            </div>
+        <main className="p-6 flex-1 flex flex-col space-y-4 max-w-[1700px] w-full mx-auto">
+          
+          {viewMode === "list" ? (
+            <div className="space-y-6">
+              {/* Header Banner */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 text-white p-7 rounded-3xl shadow-xl shadow-slate-900/10">
+                <div>
+                  <div className="flex items-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-widest mb-1.5">
+                    <Users size={16} />
+                    <span>CRM & Client Directory</span>
+                  </div>
+                  <h1 className="text-2xl font-black tracking-tight">Customers Management</h1>
+                  <p className="text-slate-400 text-xs mt-1">
+                    Manage client profiles, contact numbers, and inspect linked vehicles
+                  </p>
+                </div>
 
-            {/* Add Customer Button with shadow & hover elevation */}
-            <button
-              onClick={() => {
-                setSelectedCustomer(null);
-                setShowModal(true);
-              }}
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white px-6 py-3.5 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200"
-            >
-              <Plus size={20} />
-              <span>Add Customer</span>
-            </button>
-          </div>
-
-          {/* Equal Height Cards (h-28) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {/* Card 1: Total Customers */}
-            <div className="h-28 bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl shadow-lg p-6 flex justify-between items-center hover:-translate-y-1 hover:shadow-blue-500/25 transition-all duration-300 relative overflow-hidden">
-              <div className="z-10">
-                <p className="text-blue-100 font-medium text-xs uppercase tracking-wider">
-                  Total Customers
-                </p>
-                <h2 className="text-4xl font-extrabold text-white mt-1">
-                  {customers.length}
-                </h2>
-              </div>
-              <Users size={60} className="text-white/20 absolute right-4 bottom-1 pointer-events-none" />
-            </div>
-
-            {/* Card 2: Search Results */}
-            <div className="h-28 bg-gradient-to-r from-emerald-600 to-teal-500 rounded-2xl shadow-lg p-6 flex justify-between items-center hover:-translate-y-1 hover:shadow-emerald-500/25 transition-all duration-300 relative overflow-hidden">
-              <div className="z-10">
-                <p className="text-emerald-100 font-medium text-xs uppercase tracking-wider">
-                  Search Results
-                </p>
-                <h2 className="text-4xl font-extrabold text-white mt-1">
-                  {filteredCustomers.length}
-                </h2>
-              </div>
-              <UserCheck size={60} className="text-white/20 absolute right-4 bottom-1 pointer-events-none" />
-            </div>
-
-            {/* Card 3: Total Vehicles */}
-            <div className="h-28 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl shadow-lg p-6 flex justify-between items-center hover:-translate-y-1 hover:shadow-orange-500/25 transition-all duration-300 relative overflow-hidden">
-              <div className="z-10">
-                <p className="text-orange-100 font-medium text-xs uppercase tracking-wider">
-                  Total Vehicles
-                </p>
-                <h2 className="text-4xl font-extrabold text-white mt-1">
-                  {totalVehicles}
-                </h2>
-              </div>
-              <Car size={60} className="text-white/20 absolute right-4 bottom-1 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Search Bar & Results Badge */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
-            <div className="relative w-full sm:w-[520px]">
-              <Search
-                className="absolute left-4 top-3.5 text-gray-400"
-                size={20}
-              />
-              <input
-                type="text"
-                placeholder="Search by Name or Mobile..."
-                value={search}
-                onChange={handleSearchChange}
-                className="w-full border border-slate-300 bg-white rounded-xl py-3 pl-12 pr-10 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition duration-200 shadow-sm"
-              />
-              {search && (
                 <button
-                  onClick={clearSearch}
-                  className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600 transition"
+                  onClick={handleOpenNew}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-2xl text-xs font-black shadow-lg shadow-emerald-600/30 transition"
                 >
-                  <X size={18} />
+                  <Plus size={18} />
+                  <span>Create Customer</span>
                 </button>
-              )}
-            </div>
+              </div>
 
-            <div className="text-sm font-semibold text-slate-500 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm self-start sm:self-auto">
-              Showing{" "}
-              <span className="text-blue-600 font-bold">
-                {paginatedCustomers.length}
-              </span>{" "}
-              of <span className="text-slate-800 font-bold">{filteredCustomers.length}</span> customers
-            </div>
-          </div>
-
-          {/* Table Container */}
-          <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-900 text-slate-200 uppercase text-xs font-bold tracking-wider">
-                  <tr>
-                    <th className="p-5">ID</th>
-                    <th className="p-5">Name</th>
-                    <th className="p-5">Mobile</th>
-                    <th className="p-5">Email</th>
-                    <th className="p-5 text-center">Vehicles</th>
-                    <th className="p-5 text-center">Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody className="animate-fade-in divide-y divide-slate-100">
-                  {loading ? (
-                    <tr>
-                      <td colSpan="6" className="text-center py-12 text-slate-500 font-medium">
-                        Loading customers...
-                      </td>
-                    </tr>
-                  ) : paginatedCustomers.length > 0 ? (
-                    paginatedCustomers.map((customer) => (
-                      <tr
-                        key={customer.id}
-                        className="odd:bg-white even:bg-slate-50/50 hover:bg-slate-50 hover:-translate-y-[1px] hover:shadow-sm transition-all duration-200"
-                      >
-                        <td className="p-5">
-                          <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold font-mono">
-                            #{customer.id}
-                          </span>
-                        </td>
-
-                        <td className="p-5">
-                          <Link
-                            to={`/customers/${customer.id}`}
-                            className="text-blue-600 hover:text-blue-800 hover:underline font-semibold transition"
-                          >
-                            {customer.name}
-                          </Link>
-                        </td>
-
-                        <td className="p-5 text-slate-600 font-medium">
-                          {customer.mobile || "-"}
-                        </td>
-
-                        <td className="p-5 text-slate-600">
-                          {customer.email || "-"}
-                        </td>
-
-                        <td className="p-5 text-center">
-                          <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-blue-400 text-white font-bold text-lg shadow-md shadow-blue-500/20">
-                            {customer.vehicle_count || 0}
-                          </span>
-                        </td>
-
-                        <td className="p-5 text-center">
-                          <div className="flex justify-center gap-2.5">
-                            <button
-                              onClick={() => {
-                                setSelectedCustomer(customer);
-                                setShowModal(true);
-                              }}
-                              className="bg-amber-400 hover:bg-amber-500 hover:scale-105 text-white p-2.5 rounded-xl shadow-md transition-all duration-200"
-                              title="Edit Customer"
-                            >
-                              <Pencil size={18} />
-                            </button>
-                            <button
-                              onClick={() => setCustomerToDelete(customer)}
-                              className="bg-rose-600 hover:bg-rose-700 hover:scale-105 text-white p-2.5 rounded-xl shadow-md transition-all duration-200"
-                              title="Delete Customer"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="6" className="text-center py-12">
-                        <div className="max-w-sm mx-auto">
-                          <h3 className="text-lg font-bold text-slate-700">
-                            No Customers Found
-                          </h3>
-                          <p className="text-slate-400 text-sm mt-1">
-                            Try another search keyword.
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Controls */}
-            {!loading && filteredCustomers.length > itemsPerPage && (
-              <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-t border-slate-200">
-                <span className="text-sm text-slate-500 font-medium">
-                  Page <span className="font-bold text-slate-800">{currentPage}</span> of{" "}
-                  <span className="font-bold text-slate-800">{totalPages}</span>
+              {/* Search Control */}
+              <div className="bg-white p-3 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between">
+                <div className="relative w-96">
+                  <Search className="absolute left-3.5 top-2.5 text-slate-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Search by client name or phone..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 text-xs bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                  />
+                </div>
+                <span className="text-xs font-bold text-slate-400 pr-3">
+                  Total Clients: <span className="text-emerald-600 font-black">{filteredCustomers.length}</span>
                 </span>
+              </div>
 
-                <div className="flex items-center gap-2">
+              {/* Table */}
+              <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-900 text-slate-300 uppercase text-[10px] font-extrabold tracking-wider">
+                      <tr>
+                        <th className="px-6 py-4">ID #</th>
+                        <th className="px-6 py-4">Client Name</th>
+                        <th className="px-6 py-4">Phone Number</th>
+                        <th className="px-6 py-4">Email Address</th>
+                        <th className="px-6 py-4">Address</th>
+                        <th className="px-6 py-4 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredCustomers.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-slate-400">
+                            <Users size={32} className="mx-auto text-slate-300 mb-2" />
+                            <p className="font-bold text-slate-600">No customers registered</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredCustomers.map((c) => (
+                          <tr 
+                            key={c.id} 
+                            onClick={() => handleOpenEdit(c)}
+                            className="hover:bg-emerald-50/40 cursor-pointer transition"
+                          >
+                            <td className="px-6 py-4 font-mono font-black text-emerald-600">
+                              #{c.id}
+                            </td>
+                            <td className="px-6 py-4 font-extrabold text-slate-800">
+                              {c.name}
+                            </td>
+                            <td className="px-6 py-4 font-bold text-slate-600 flex items-center gap-1">
+                              <Phone size={13} className="text-slate-400" /> {c.phone}
+                            </td>
+                            <td className="px-6 py-4 text-slate-500 font-medium">
+                              {c.email || "N/A"}
+                            </td>
+                            <td className="px-6 py-4 text-slate-500">
+                              {c.address || "Cairo, Egypt"}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button className="text-slate-400 hover:text-emerald-600 font-bold text-xs inline-flex items-center gap-1">
+                                Open File <ChevronRight size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : (
+
+            /* Form View (Odoo Style) */
+            <div className="space-y-4">
+              <div className="bg-white px-6 py-3.5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
                   <button
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage((prev) => prev - 1)}
-                    className="flex items-center gap-1 px-3 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    onClick={() => setViewMode("list")}
+                    className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition"
                   >
-                    <ChevronLeft size={16} /> Previous
+                    <ArrowLeft size={15} /> Back to Directory
                   </button>
 
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-9 h-9 text-sm font-bold rounded-lg transition ${
-                        currentPage === page
-                          ? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
-                          : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-100"
-                      }`}
-                    >
-                      {page}
+                  <button
+                    type="button"
+                    onClick={handleSaveCustomer}
+                    disabled={loading}
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-4 py-2 rounded-xl text-xs font-black shadow-md shadow-emerald-600/20 transition cursor-pointer disabled:opacity-50"
+                  >
+                    <Save size={15} /> {selectedId ? "Save Changes" : "Create Customer"}
+                  </button>
+
+                  <button
+                    onClick={() => navigate("/vehicles", { state: { customer_id: selectedId } })}
+                    className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 transition"
+                  >
+                    <Car size={14} className="text-emerald-600" /> Register Vehicle
+                  </button>
+                </div>
+
+                <span className="text-xs font-extrabold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                  {selectedId ? `Client Record #${selectedId}` : "New Client Draft"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+                
+                {/* Form Sheet (8 Cols) */}
+                <div className="xl:col-span-8 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-8 space-y-7">
+                  
+                  <div className="border-b border-slate-100 pb-4">
+                    <span className="text-[11px] font-black uppercase text-emerald-600 tracking-wider">
+                      Customer Profile
+                    </span>
+                    <input
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g. Philip Ishak"
+                      className="w-full text-2xl font-black text-slate-900 border-none outline-none focus:ring-0 placeholder:text-slate-300 mt-1"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">Phone Number *</label>
+                        <input
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          placeholder="e.g. 01275372423"
+                          className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">Email Address</label>
+                        <input
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="client@autocore.com"
+                          className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">Physical Address</label>
+                        <input
+                          value={formData.address}
+                          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                          className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">Company / Segment</label>
+                        <input
+                          value={formData.company}
+                          onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                          className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Linked Vehicles Tab Section */}
+                  <div className="pt-6 border-t border-slate-100 space-y-4">
+                    <div className="flex items-center gap-3 border-b border-slate-100 pb-2">
+                      <button
+                        type="button"
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white"
+                      >
+                        Registered Vehicles ({customerVehicles.length})
+                      </button>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-100 text-slate-600 font-extrabold uppercase text-[10px]">
+                          <tr>
+                            <th className="px-4 py-3">Brand & Model</th>
+                            <th className="px-4 py-3">Plate Number</th>
+                            <th className="px-4 py-3">Chassis / VIN</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-medium">
+                          {customerVehicles.length === 0 ? (
+                            <tr>
+                              <td colSpan={3} className="px-4 py-6 text-center text-slate-400 font-bold">
+                                No vehicles registered for this client yet.
+                              </td>
+                            </tr>
+                          ) : (
+                            customerVehicles.map(v => (
+                              <tr key={v.id}>
+                                <td className="px-4 py-3 font-extrabold text-slate-800">{v.brand} {v.model}</td>
+                                <td className="px-4 py-3 font-mono">{v.plate_number}</td>
+                                <td className="px-4 py-3 font-mono">{v.vin || "VIN-849204"}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Right Chatter */}
+                <div className="xl:col-span-4 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 flex flex-col space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2 text-slate-800 font-extrabold text-sm">
+                      <History size={16} className="text-emerald-600" />
+                      <span>Chatter & Activity Log</span>
+                    </div>
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                      {logs.length} updates
+                    </span>
+                  </div>
+
+                  <form onSubmit={handleAddLog} className="relative">
+                    <input
+                      type="text"
+                      placeholder="Post note..."
+                      value={newLog}
+                      onChange={(e) => setNewLog(e.target.value)}
+                      className="w-full text-xs font-medium pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <button type="submit" className="absolute right-2 top-2 p-1 text-slate-400 hover:text-emerald-600">
+                      <Send size={15} />
                     </button>
-                  ))}
+                  </form>
 
-                  <button
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage((prev) => prev + 1)}
-                    className="flex items-center gap-1 px-3 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                  >
-                    Next <ChevronRight size={16} />
-                  </button>
+                  <div className="space-y-3 flex-1 overflow-y-auto max-h-[620px] pr-1">
+                    {logs.map((log) => (
+                      <div key={log.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="font-extrabold text-slate-800">{log.user}</span>
+                          <span className="text-slate-400">{log.time}</span>
+                        </div>
+                        <p className="text-xs text-slate-600 font-medium">{log.text}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
 
-          {/* Add / Edit Form Modal */}
-          {showModal && (
-            <Modal
-              title={selectedCustomer ? "Edit Customer" : "Add Customer"}
-              onClose={() => {
-                setShowModal(false);
-                setSelectedCustomer(null);
-              }}
-            >
-              <AddCustomerForm
-                customer={selectedCustomer}
-                onSuccess={() => {
-                  setShowModal(false);
-                  setSelectedCustomer(null);
-                  loadCustomers();
-                }}
-              />
-            </Modal>
+              </div>
+            </div>
           )}
 
-          {/* Delete Modal */}
-          {customerToDelete && (
-            <Modal
-              title="Delete Customer"
-              onClose={() => setCustomerToDelete(null)}
-            >
-              <div className="p-2 text-center">
-                <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <AlertTriangle size={30} />
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">
-                  Are you sure?
-                </h3>
-                <p className="text-slate-500 text-sm mb-6">
-                  You are about to delete <span className="font-bold text-slate-800">{customerToDelete.name}</span>. This action cannot be undone.
-                </p>
-                <div className="flex justify-center gap-3">
-                  <button
-                    onClick={() => setCustomerToDelete(null)}
-                    className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-100 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmDeleteCustomer}
-                    className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-md shadow-rose-600/30 transition"
-                  >
-                    Delete Customer
-                  </button>
-                </div>
-              </div>
-            </Modal>
-          )}
-        </div>
+        </main>
       </div>
     </div>
   );

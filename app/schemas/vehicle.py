@@ -1,34 +1,20 @@
 from pydantic import BaseModel
+from typing import Optional
 
-
-class VehicleCreate(BaseModel):
+class VehicleBase(BaseModel):
     customer_id: int
     brand: str
     model: str
-    model_year: int
+    year: Optional[int] = None
+    plate_number: str
+    vin: Optional[str] = None
+    mileage: Optional[int] = 0
 
-    plate_number: str | None = None
-    chassis_number: str | None = None
-    engine_number: str | None = None
+class VehicleCreate(VehicleBase):
+    pass
 
-    color: str | None = None
-    transmission: str | None = None
-    fuel_type: str | None = None
+class VehicleResponse(VehicleBase):
+    id: int
 
-    current_km: int = 0
-
-
-class VehicleUpdate(BaseModel):
-    brand: str
-    model: str
-    model_year: int
-
-    plate_number: str | None = None
-    chassis_number: str | None = None
-    engine_number: str | None = None
-
-    color: str | None = None
-    transmission: str | None = None
-    fuel_type: str | None = None
-
-    current_km: int = 0
+    class Config:
+        from_attributes = True
