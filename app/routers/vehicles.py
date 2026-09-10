@@ -1,32 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
-from app.database import get_db
-from app.models.vehicle import Vehicle
-from app.schemas.vehicle import VehicleCreate, VehicleResponse
+from database import get_db
+from models.vehicle import Vehicle
+from schemas.vehicle import VehicleCreate, VehicleResponse
 
-router = APIRouter(prefix="/vehicles", tags=["Vehicles"])
+router = APIRouter(
+    prefix="/vehicles",
+    tags=["Vehicles"]
+)
 
-@router.get("", response_model=List[VehicleResponse])
-@router.get("/", response_model=List[VehicleResponse])
-def get_all_vehicles(db: Session = Depends(get_db)):
-    return db.query(Vehicle).all()
-
-@router.post("", response_model=VehicleResponse, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=VehicleResponse, status_code=status.HTTP_201_CREATED)
-def create_vehicle(payload: VehicleCreate, db: Session = Depends(get_db)):
-    exist = db.query(Vehicle).filter(Vehicle.plate_number == payload.plate_number).first()
-    if exist:
-        raise HTTPException(status_code=400, detail="Plate number already exists")
-    v = Vehicle(**payload.dict())
-    db.add(v)
+@router.post("/", response_model=VehicleResponse)
+def create_vehicle(vehicle: VehicleCreate, db: Session = Depends(get_db)):
+    db_vehicle = Vehicle(**vehicle.dict())
+    db.add(db_vehicle)
     db.commit()
-    db.refresh(v)
-    return v
+    db.refresh(db_vehicle)
+    return db_vehicle
 
-@router.get("/{vehicle_id}", response_model=VehicleResponse)
-def get_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
-    v = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
-    if not v:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-    return v
+@router.get("/", response_model=list[VehicleResponse])
+def get_vehicles(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return db.query(Vehicle).offset(skip).limit(limit).all()
