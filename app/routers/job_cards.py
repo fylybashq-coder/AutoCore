@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from database import get_db
-from app.models.job_card import JobCard
-from app.models.vehicle import Vehicle
-from app.models.call import Call
+from models.job_card import JobCard
+from models.vehicle import Vehicle
+from models.call import Call
 
 router = APIRouter(
     prefix="/job-cards",
