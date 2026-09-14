@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from database import get_db
-from app.models.ticket import Ticket
-from app.models.job_card import JobCard
+from models.ticket import Ticket
+from models.job_card import JobCard
 
 router = APIRouter(
     prefix="/tickets",
