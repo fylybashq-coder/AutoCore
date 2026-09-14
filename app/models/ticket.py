@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from datetime import datetime
-from app.database import Base
+from database import Base
 
 class Ticket(BaseModel if 'BaseModel' in globals() else Base):
     __tablename__ = "tickets"
