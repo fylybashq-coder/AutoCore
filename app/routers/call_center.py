@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.schemas.call_center import MobileSearch
-from app.services.customer_service import CustomerService
+from database import get_db
+from schemas.call_center import MobileSearch
+from services.customer_service import CustomerService
 
 router = APIRouter(
     prefix="/call-center",
