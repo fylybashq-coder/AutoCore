@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.models.customer import Customer
-from app.models.vehicle import Vehicle
-from app.schemas.customer import CustomerCreate
+from models.customer import Customer
+from models.vehicle import Vehicle
+from schemas.customer import CustomerCreate
 
 
 class CustomerRepository:
