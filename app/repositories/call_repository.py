@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app.models.call import Call
-from app.schemas.call import CallCreate
+from models.call import Call
+from schemas.call import CallCreate
 
 
 class CallRepository:
@@ -40,3 +40,4 @@ class CallRepository:
             .filter(Call.vehicle_id == vehicle_id)
             .all()
         )
+```[cite: 2]
