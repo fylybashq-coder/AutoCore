@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
 
-from app.schemas.customer import CustomerCreate
-from app.repositories.customer_repository import CustomerRepository
-from app.services.vehicle_service import VehicleService
-from app.services.appointment_service import AppointmentService
-from app.services.call_service import CallService
+from schemas.customer import CustomerCreate
+from repositories.customer_repository import CustomerRepository
+from services.vehicle_service import VehicleService
+from services.appointment_service import AppointmentService
+from services.call_service import CallService
 
 
 class CustomerService:
