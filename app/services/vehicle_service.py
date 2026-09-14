@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app.schemas.vehicle import VehicleCreate, VehicleUpdate
-from app.repositories.vehicle_repository import VehicleRepository
+from schemas.vehicle import VehicleCreate, VehicleUpdate
+from repositories.vehicle_repository import VehicleRepository
 
 
 class VehicleService:
