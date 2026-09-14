@@ -1,4 +1,4 @@
-from app.repositories.dashboard_repository import DashboardRepository
+from repositories.dashboard_repository import DashboardRepository
 
 
 class DashboardService:
