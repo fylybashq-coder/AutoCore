@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from app.database import get_db
-from app.models.appointment import Appointment
+from database import get_db
+from models.appointment import Appointment
 
 router = APIRouter(
     prefix="/appointments",
