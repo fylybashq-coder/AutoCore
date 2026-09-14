@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app.schemas.call import CallCreate
-from app.repositories.call_repository import CallRepository
+from schemas.call import CallCreate
+from repositories.call_repository import CallRepository
 
 
 class CallService:
