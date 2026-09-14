@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app.models.appointment import Appointment
-from app.schemas.appointment import AppointmentCreate, AppointmentUpdate
+from models.appointment import Appointment
+from schemas.appointment import AppointmentCreate, AppointmentUpdate
 
 
 class AppointmentRepository:
@@ -82,3 +82,4 @@ class AppointmentRepository:
         db.commit()
 
         return True
+```[cite: 1]
