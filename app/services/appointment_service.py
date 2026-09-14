@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app.schemas.appointment import AppointmentCreate, AppointmentUpdate
-from app.repositories.appointment_repository import AppointmentRepository
+from schemas.appointment import AppointmentCreate, AppointmentUpdate
+from repositories.appointment_repository import AppointmentRepository
 
 
 class AppointmentService:
