@@ -2,10 +2,10 @@ import uuid
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from app.models.job_card import JobCard
-from app.models.vehicle import Vehicle
-from app.models.call import Call
-from app.schemas.job_card import JobCardCreate, JobCardUpdateStatus
+from models.job_card import JobCard
+from models.vehicle import Vehicle
+from models.call import Call
+from schemas.job_card import JobCardCreate, JobCardUpdateStatus
 
 class JobCardRepository:
 
