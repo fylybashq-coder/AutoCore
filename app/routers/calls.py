@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from database import get_db
-from app.schemas.call import CallCreate
-from app.services.call_service import CallService
+from schemas.call import CallCreate
+from services.call_service import CallService
 
 router = APIRouter(
     prefix="/calls",
