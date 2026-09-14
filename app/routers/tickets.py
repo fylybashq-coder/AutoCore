@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from app.database import get_db
+from database import get_db
 from app.models.ticket import Ticket
 from app.models.job_card import JobCard
 
