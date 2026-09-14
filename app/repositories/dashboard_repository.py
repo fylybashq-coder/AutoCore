@@ -2,10 +2,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import date
 
-from app.models.customer import Customer
-from app.models.vehicle import Vehicle
-from app.models.appointment import Appointment
-from app.models.call import Call
+from models.customer import Customer
+from models.vehicle import Vehicle
+from models.appointment import Appointment
+from models.call import Call
 
 
 class DashboardRepository:
